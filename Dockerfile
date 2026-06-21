@@ -29,15 +29,17 @@ FROM node:20-alpine
 RUN npm install -g supergateway@3.4.3
 
 WORKDIR /app
-COPY index.mjs package.json guard.cjs ./
+COPY index.mjs package.json guard.cjs shim.mjs ./
 
 ENV PORT=8000
 EXPOSE 8000
 
-# stdio (node index.mjs) -> Streamable HTTP on :8000, stateful (per-session).
-# Stateful is required for claude.ai: its client opens a GET event-stream after
-# initialize; in stateless mode that GET returns 405, which claude.ai treats as
-# an auth challenge and falls back to a (failing) OAuth registration. With the
-# default session policy, sessions live until the client disconnects or the
-# container restarts — so avoid needless redeploys while a client is connected.
-CMD ["sh", "-c", "node --require /app/guard.cjs \"$(command -v supergateway)\" --stdio 'node /app/index.mjs' --outputTransport streamableHttp --stateful --streamableHttpPath \"${MCP_PATH:-/mcp}\" --port \"${PORT:-8000}\" --healthEndpoint /healthz --cors --logLevel info"]
+# Two processes in the container:
+#   1. supergateway in STATELESS Streamable HTTP mode on :8001 (no sessions, so
+#      restarts can't strand a client on a dead session id — the failure mode
+#      that stateful mode hit: it returns 400, not the 404 clients re-init on).
+#   2. shim.mjs on :8000 (the exposed port): proxies to :8001, but answers GET
+#      on the MCP path with 200 SSE so stateless's 405 can't trigger a client's
+#      OAuth fallback. guard.cjs keeps a dropped connection from crashing the
+#      gateway process.
+CMD ["sh", "-c", "node --require /app/guard.cjs \"$(command -v supergateway)\" --stdio 'node /app/index.mjs' --outputTransport streamableHttp --streamableHttpPath \"${MCP_PATH:-/mcp}\" --port 8001 --healthEndpoint /healthz --cors --logLevel info & UPSTREAM_PORT=8001 exec node /app/shim.mjs"]
