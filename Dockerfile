@@ -6,15 +6,18 @@
 # the stdio transport to SSE (Server-Sent Events).
 #
 # Exposed endpoints (port 8000):
-#   GET  /sse      — SSE stream (server -> client)
-#   POST /message  — client -> server messages
-#   GET  /healthz  — health check, returns "ok"
+#   GET  <SSE_PATH>  — SSE stream (server -> client),  default /sse
+#   POST <MSG_PATH>  — client -> server messages,      default /message
+#   GET  /healthz    — health check, returns "ok" (always public)
 #
 # 1C connection is configured via environment variables (set them in Coolify):
 #   ONEC_URL           — base URL of the 1C HTTP service, e.g. https://server/base/hs/mcp/
 #   ONEC_USER          — 1C username
 #   ONEC_PASSWORD      — 1C password
 #   ONEC_ALLOWED_TOOLS — optional comma-separated whitelist of tool names
+#   SSE_PATH / MSG_PATH — optional override of the SSE / message URL paths.
+#                         Embedding a long random token (e.g. /s/<token>/sse)
+#                         turns the URL itself into the access credential.
 #
 # Without ONEC_URL the server still answers `initialize` and `tools/list`
 # (demo/inspection mode) but returns an error for `tools/call`.
@@ -32,4 +35,4 @@ ENV PORT=8000
 EXPOSE 8000
 
 # stdio (node index.mjs) -> SSE on :8000
-CMD ["sh", "-c", "supergateway --stdio 'node /app/index.mjs' --outputTransport sse --port \"${PORT:-8000}\" --ssePath /sse --messagePath /message --healthEndpoint /healthz --cors --logLevel info"]
+CMD ["sh", "-c", "supergateway --stdio 'node /app/index.mjs' --outputTransport sse --port \"${PORT:-8000}\" --ssePath \"${SSE_PATH:-/sse}\" --messagePath \"${MSG_PATH:-/message}\" --healthEndpoint /healthz --cors --logLevel info"]
