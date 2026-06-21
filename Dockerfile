@@ -34,10 +34,10 @@ COPY index.mjs package.json ./
 ENV PORT=8000
 EXPOSE 8000
 
-# stdio (node index.mjs) -> Streamable HTTP on :8000.
-# Stateless mode: each HTTP request is self-contained (supergateway runs the
-# initialize handshake per request), so there are no sessions to expire. This
-# avoids the "No valid session ID" 400 that broke clients which reload tools
-# with a session id from a previous (since-restarted) connection — e.g.
-# claude.ai's "reload tools". It also fits this proxy, which holds no state.
-CMD ["sh", "-c", "supergateway --stdio 'node /app/index.mjs' --outputTransport streamableHttp --streamableHttpPath \"${MCP_PATH:-/mcp}\" --port \"${PORT:-8000}\" --healthEndpoint /healthz --cors --logLevel info"]
+# stdio (node index.mjs) -> Streamable HTTP on :8000, stateful (per-session).
+# Stateful is required for claude.ai: its client opens a GET event-stream after
+# initialize; in stateless mode that GET returns 405, which claude.ai treats as
+# an auth challenge and falls back to a (failing) OAuth registration. With the
+# default session policy, sessions live until the client disconnects or the
+# container restarts — so avoid needless redeploys while a client is connected.
+CMD ["sh", "-c", "supergateway --stdio 'node /app/index.mjs' --outputTransport streamableHttp --stateful --streamableHttpPath \"${MCP_PATH:-/mcp}\" --port \"${PORT:-8000}\" --healthEndpoint /healthz --cors --logLevel info"]
