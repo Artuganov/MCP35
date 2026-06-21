@@ -35,7 +35,9 @@ ENV PORT=8000
 EXPOSE 8000
 
 # stdio (node index.mjs) -> Streamable HTTP on :8000.
-# --stateful keeps a separate per-session server instance (required: the legacy
-# SSE gateway shared one instance and crashed with "Already connected" when a
-# client opened a second connection).
-CMD ["sh", "-c", "supergateway --stdio 'node /app/index.mjs' --outputTransport streamableHttp --stateful --streamableHttpPath \"${MCP_PATH:-/mcp}\" --port \"${PORT:-8000}\" --healthEndpoint /healthz --cors --logLevel info"]
+# Stateless mode: each HTTP request is self-contained (supergateway runs the
+# initialize handshake per request), so there are no sessions to expire. This
+# avoids the "No valid session ID" 400 that broke clients which reload tools
+# with a session id from a previous (since-restarted) connection — e.g.
+# claude.ai's "reload tools". It also fits this proxy, which holds no state.
+CMD ["sh", "-c", "supergateway --stdio 'node /app/index.mjs' --outputTransport streamableHttp --streamableHttpPath \"${MCP_PATH:-/mcp}\" --port \"${PORT:-8000}\" --healthEndpoint /healthz --cors --logLevel info"]
