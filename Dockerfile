@@ -29,7 +29,7 @@ FROM node:20-alpine
 RUN npm install -g supergateway@3.4.3
 
 WORKDIR /app
-COPY index.mjs package.json ./
+COPY index.mjs package.json guard.cjs ./
 
 ENV PORT=8000
 EXPOSE 8000
@@ -40,4 +40,4 @@ EXPOSE 8000
 # an auth challenge and falls back to a (failing) OAuth registration. With the
 # default session policy, sessions live until the client disconnects or the
 # container restarts — so avoid needless redeploys while a client is connected.
-CMD ["sh", "-c", "supergateway --stdio 'node /app/index.mjs' --outputTransport streamableHttp --stateful --streamableHttpPath \"${MCP_PATH:-/mcp}\" --port \"${PORT:-8000}\" --healthEndpoint /healthz --cors --logLevel info"]
+CMD ["sh", "-c", "node --require /app/guard.cjs \"$(command -v supergateway)\" --stdio 'node /app/index.mjs' --outputTransport streamableHttp --stateful --streamableHttpPath \"${MCP_PATH:-/mcp}\" --port \"${PORT:-8000}\" --healthEndpoint /healthz --cors --logLevel info"]
