@@ -1,0 +1,7 @@
+# The container only needs the stdio MCP server and its manifest.
+# Ignore everything else (docs, article binaries, .cfe, BSL source, git).
+*
+!index.mjs
+!package.json
+!guard.cjs
+!shim.mjs
